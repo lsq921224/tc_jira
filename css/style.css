@@ -1,0 +1,27 @@
+.names
+{
+  margin-top: 0px !important;
+  margin-bottom: 0px !important;
+}
+
+#it
+{	
+  margin-bottom: 10px;
+}
+
+#nresults
+{
+  margin-top: 10px;
+  margin-bottom: 0px !important;
+}
+
+#sresults
+{
+  margin-top: 0px !important;
+}
+
+select
+{
+  background: #ddd;
+}
+
