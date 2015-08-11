@@ -2032,39 +2032,54 @@
                     this.eventBus.trigger("change", this.input.getQuery());
                 }
             },
+			
             _onEnterKeyed: function onEnterKeyed(type, $e) {
-                var $selectable;
-                if ($selectable = this.menu.getActiveSelectable()) {
-                    this.select($selectable) && $e.preventDefault();
-                }
+				this.select(this.menu.getActiveSelectable()) && $e.preventDefault();
+				
+                //var $selectable;
+                //if ($selectable = this.menu.getActiveSelectable()) {
+                //    this.select($selectable) && $e.preventDefault();
+                //}
+				
             },
             _onTabKeyed: function onTabKeyed(type, $e) {
-                var $selectable;
-                if ($selectable = this.menu.getActiveSelectable()) {
-                    this.select($selectable) && $e.preventDefault();
-                } else if ($selectable = this.menu.getTopSelectable()) {
-                    this.autocomplete($selectable) && $e.preventDefault();
-                }
+				if (this.menu.getActiveSelectable())
+					this.select(this.menu.getActiveSelectable()) && $e.preventDefault();
+				else
+					this.select(this.menu.getTopSelectable()) && $e.preventDefault();
+                //var $selectable;
+                //if ($selectable = this.menu.getActiveSelectable()) {
+                 //   this.select($selectable) && $e.preventDefault();
+                //} else if ($selectable = this.menu.getTopSelectable()) {
+                //    this.autocomplete($selectable) && $e.preventDefault();
+                //}
+				
             },
+			
             _onEscKeyed: function onEscKeyed() {
                 this.close();
             },
+			/*
             _onUpKeyed: function onUpKeyed() {
                 this.moveCursor(-1);
             },
             _onDownKeyed: function onDownKeyed() {
                 this.moveCursor(+1);
             },
+			*/
             _onLeftKeyed: function onLeftKeyed() {
                 if (this.dir === "rtl" && this.input.isCursorAtEnd()) {
-                    this.autocomplete(this.menu.getTopSelectable());
+                    //this.autocomplete(this.menu.getTopSelectable());
+					this.select(this.menu.getTopSelectable());
                 }
             },
             _onRightKeyed: function onRightKeyed() {
                 if (this.dir === "ltr" && this.input.isCursorAtEnd()) {
-                    this.autocomplete(this.menu.getTopSelectable());
+                    //this.autocomplete(this.menu.getTopSelectable());
+					this.select(this.menu.getTopSelectable());
                 }
             },
+			
             _onQueryChanged: function onQueryChanged(e, query) {
                 this._minLengthMet(query) ? this.menu.update(query) : this.menu.empty();
             },

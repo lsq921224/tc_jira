@@ -6,8 +6,12 @@
 	//$password = 'T3sting123';
 	//$URL = 'http://agvinfosec01.touchcommerce.com:8080/rest/api/2/search';
 	$jql = !is_null($_GET["jql"]) && $_GET["jql"] != ''  ? $_GET["jql"] : 'assignee=mmcclarin';
-	
-	$data = 'jql='.$jql.'&fields=created,resolutiondate,reporter,assignee,project,issuetype,status,resolution,timespent&maxResults=10000';
+	?>
+	<script>
+		console.log("<?php echo $jql;?>"); 
+	</script>
+	<?php
+	$data = 'jql='.urlencode($jql).'&fields=created,resolutiondate,reporter,assignee,project,issuetype,status,resolution,timespent&maxResults=10000';
 	//$data = 'jql=assignee=mmcclarin&fields=id&maxResults=10000';
 	$ch = curl_init();
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
@@ -19,6 +23,14 @@
 	curl_setopt($ch, CURLOPT_USERPWD, "$username:$password");
 	$status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 	$results = curl_exec($ch);
+	if($results === false)
+	{
+		echo 'Curl error: ' . curl_error($ch);
+	}
+	else
+	{
+		//echo urldecode($URL.'?'.$data);
+	}
 	curl_setopt($ch, CURLOPT_URL, $URL_AUTO);
 	$auto = curl_exec($ch);
 	curl_close($ch);
@@ -40,6 +52,7 @@
   <script src="js/jquery.csv.js"></script>
   <script src="js/FileSaver.min.js"></script>
   <script src="js/json2csv.js"></script>
+
 </head>
 
 <body>
@@ -62,6 +75,7 @@
 	
 	var fieldsNames = fieldsNameJSON['visibleFieldNames'];
 	var name_operator = new Object();
+	var name_value = new Object();
 	var fieldsNamesDisplay = [];
 	for (var i = 0; i < fieldsNames.length; i++)
 	{
@@ -70,7 +84,7 @@
 	}
 	var functionNames = fieldsNameJSON['visibleFunctionNames'];
 	var myVal = $('#jql_query').val();
-	var operators = ['=','!=','~','<=','>=','>','<','!~','is not', 'is','not in','in','was','was not','was in','was not in'];
+	var operators = ['=','!=','~','<=','>=','>','<','!~','in','is','is not','not in','was','was not','was in','was not in','changed'];
 	var operator = "";
 
 	
@@ -110,8 +124,19 @@
 	$('.ajax-typeahead').bind('typeahead:select', function(ev, suggestion) {
 		//myVal = $('#jql_query').val();
 		ev.preventDefault();
+		var value = name_value[suggestion];
+		if (value == null)
+			value = suggestion;
 		console.log('myval: ' + myVal);
-		$('#jql_query').typeahead('val', myVal + " " + suggestion);
+		var lastIndex = myVal.lastIndexOf(" ");
+		if (lastIndex === -1)
+			myVal = "";
+		else
+			myVal = myVal.substring(0, lastIndex);
+		if (myVal != "")
+			$('#jql_query').typeahead('val', myVal + " " + value);
+		else
+			$('#jql_query').typeahead('val', value);
 
 	});
 	
@@ -148,7 +173,7 @@
 		}	
 		
 		fieldName = $('#jql_query').val();
-		if (fieldName.endsWith(' ') && fieldName.trim().length > 0)
+		if (fieldName.endsWith(' ') && fieldName.trim().length > 0 && operator == "")
 		{
 			if (name_operator[fieldName.trim()])
 			{
@@ -189,7 +214,7 @@
 				  },
 				  */
 				  type: 'GET',
-				  data: {'fieldName': fieldName.replace(/\s+/, ""), 'fieldValue':fieldValue.replace(/\s+/, "")},
+				  data: {'fieldName': fieldName.trim(), 'fieldValue':fieldValue.trim()},
 				  dataType: 'json',
 				  success: function (json) {
 					  
@@ -199,7 +224,9 @@
 					 var rex = /(<([^>]+)>)/ig;
 					 for (var i = 0; i < results.length; i++)
 					 {
-						 json_d.push( results[i].displayName.replace(rex,""));
+						 var display = results[i].displayName.replace(rex,"")
+						 json_d.push(display);
+						 name_value[display] = results[i].value;
 					 }
 					return processAsync(json_d);
 				}
@@ -218,9 +245,9 @@
 	$( "#callapi" ).submit(function( event ) {
 		var parameter = "/jira/?jql=";
 		//console.log($('#jql_query').val());
-		parameter += $('#jql_query').val().replace(/\s+/, "");
+		parameter += $('#jql_query').val();
 		//console.log(parameter);
-		window.location.href = parameter.replace(/\s+/, "");
+		window.location.href = encodeURI(parameter);
 		event.preventDefault();
 	});
 
