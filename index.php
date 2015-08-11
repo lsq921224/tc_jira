@@ -2,6 +2,9 @@
 	$username = 'jira_api';
 	$password = '7c8bc1b4a0';
 	$URL = 'http://jira.touchcommerce.com/rest/api/2/search';
+	$URL_AUTO = 'http://jira.touchcommerce.com/rest/api/2/jql/autocompletedata/';
+	//$password = 'T3sting123';
+	//$URL = 'http://agvinfosec01.touchcommerce.com:8080/rest/api/2/search';
 	$jql = !is_null($_GET["jql"]) && $_GET["jql"] != ''  ? $_GET["jql"] : 'assignee=mmcclarin';
 	
 	$data = 'jql='.$jql.'&fields=created,resolutiondate,reporter,assignee,project,issuetype,status,resolution,timespent&maxResults=10000';
@@ -16,6 +19,9 @@
 	curl_setopt($ch, CURLOPT_USERPWD, "$username:$password");
 	$status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 	$results = curl_exec($ch);
+	curl_setopt($ch, CURLOPT_URL, $URL_AUTO);
+	$auto = curl_exec($ch);
+	curl_close($ch);
 ?>
 <html>
 <meta charset="utf-8">
@@ -52,28 +58,159 @@
 	</div>
 -->
 	<script>
+	var fieldsNameJSON = <?php echo $auto; ?>;
+	
+	var fieldsNames = fieldsNameJSON['visibleFieldNames'];
+	var name_operator = new Object();
+	var fieldsNamesDisplay = [];
+	for (var i = 0; i < fieldsNames.length; i++)
+	{
+		name_operator[fieldsNames[i].displayName] = fieldsNames[i].operators;
+		fieldsNamesDisplay.push(fieldsNames[i].displayName);
+	}
+	var functionNames = fieldsNameJSON['visibleFunctionNames'];
+	var myVal = $('#jql_query').val();
+	var operators = ['=','!=','~','<=','>=','>','<','!~','is not', 'is','not in','in','was','was not','was in','was not in'];
+	var operator = "";
+
+	
+	$('.ajax-typeahead').bind('typeahead:autocomplete', function(ev, suggestion) {
+		 myVal = $('#jql_query').val();
+	});
+	
+	$('.ajax-typeahead').bind('typeahead:change', function(ev) {
+		for (var i = 0; i < operators.length; i ++)
+		{
+			operator = $('#jql_query').val().trim().endsWith(operators[i]) ? operators[i] : operator;
+		}
+		 myVal = $('#jql_query').val();
+	});
+	
+	$('.ajax-typeahead').bind('typeahead:idle', function(ev) {
+		 myVal = $('#jql_query').val();
+	});
+	
+	$('.ajax-typeahead').bind('typeahead:active', function(ev) {
+		 myVal = $('#jql_query').val();
+	});
+	
+	$('.ajax-typeahead').bind('typeahead:render', function(ev, suggestions, flag, name) {
+		for (var i = 0; i < operators.length; i ++)
+		{
+			operator = $('#jql_query').val().trim().endsWith(operators[i]) ? operators[i] : operator;
+		}
+		 myVal = $('#jql_query').val();
+	});
+	
+	$('.ajax-typeahead').bind('typeahead:asyncrequest', function(ev, query, name) {
+		 myVal = $('#jql_query').val();
+	});
+	
+	
+	$('.ajax-typeahead').bind('typeahead:select', function(ev, suggestion) {
+		//myVal = $('#jql_query').val();
+		ev.preventDefault();
+		console.log('myval: ' + myVal);
+		$('#jql_query').typeahead('val', myVal + " " + suggestion);
+
+	});
+	
 	$('.ajax-typeahead').typeahead({
 	  hint: true,
 	  highlight: true,
-	  minLength: 1
+	  minLength: 0
 	},
 	{
 	  limit: 12,
 	  async: true,
 	  source: function (query, processSync, processAsync) {
-		processSync(['suggestions', 'advice']);
-		return $.ajax({
-		  url: "http://jira.touchcommerce.com/rest/api/2/jql/autocompletedata/", 
-		  headers: {
-				"Authorization": "Basic amlyYV9hcGk6N2M4YmMxYjRhMA=="
-		  },
-		  type: 'GET',
-		  data: {query: query},
-		  dataType: 'json',
-		  success: function (json) {
-			return processAsync(json);
-		  }
-		});
+		var filtered = [];
+		var fieldName = "";
+		//var operator = "";
+		var fieldValue = "";
+		var valid_fieldName = false;
+		var operator_entered = false;
+		
+		
+		if ($('#jql_query').val().length === 0 || $('#jql_query').val().trim().length === 0)
+		{
+			filtered = fieldsNamesDisplay;
+		}
+		else
+		{
+			for (var i = 0 ; i < fieldsNamesDisplay.length; i++)
+			{
+				if (fieldsNamesDisplay[i].startsWith($('#jql_query').val().trim()))
+				{
+					filtered.push(fieldsNamesDisplay[i]);
+				}
+			}
+		}	
+		
+		fieldName = $('#jql_query').val();
+		if (fieldName.endsWith(' ') && fieldName.trim().length > 0)
+		{
+			if (name_operator[fieldName.trim()])
+			{
+				filtered = name_operator[fieldName.trim()];
+			}
+			else
+			{
+				filtered = operators;
+			}
+		}
+		
+		processSync(filtered);
+
+		for (var i = 0; i < operators.length; i ++)
+		{
+			operator = $('#jql_query').val().trim().endsWith(operators[i]) ? operators[i] : operator;
+		}
+		
+			if ( operator)
+			{
+				//operator = operators[i];
+				console.log("operator: " + operator);
+				var query =  $('#jql_query').val().replace(/\s+/, "").split(operator);
+				fieldName = query[0];
+				fieldValue = query[1];
+				console.log("query: " + query);
+				
+				return $.ajax({
+				  
+				  url: "http://jira.touchcommerce.com/rest/api/2/jql/autocompletedata/suggestions/", 
+				  headers: {
+						"Authorization": "Basic amlyYV9hcGk6N2M4YmMxYjRhMA=="
+				  },
+				  /*
+				  url: "http://agvinfosec01.touchcommerce.com:8080/rest/api/2/jql/autocompletedata/suggestions/",
+				  headers: {
+						"Authorization": "Basic amlyYV9hcGk6VDNzdGluZzEyMw=="
+				  },
+				  */
+				  type: 'GET',
+				  data: {'fieldName': fieldName.replace(/\s+/, ""), 'fieldValue':fieldValue.replace(/\s+/, "")},
+				  dataType: 'json',
+				  success: function (json) {
+					  
+					 var results = json.results;
+					 console.log(results);
+					 var json_d = [];
+					 var rex = /(<([^>]+)>)/ig;
+					 for (var i = 0; i < results.length; i++)
+					 {
+						 json_d.push( results[i].displayName.replace(rex,""));
+					 }
+					return processAsync(json_d);
+				}
+				  
+				});
+				
+			}
+		
+		
+		
+	
 	  }
 	
 	});
@@ -81,9 +218,9 @@
 	$( "#callapi" ).submit(function( event ) {
 		var parameter = "/jira/?jql=";
 		//console.log($('#jql_query').val());
-		parameter += $('#jql_query').val();
+		parameter += $('#jql_query').val().replace(/\s+/, "");
 		//console.log(parameter);
-		window.location.href = parameter;
+		window.location.href = parameter.replace(/\s+/, "");
 		event.preventDefault();
 	});
 
@@ -332,7 +469,10 @@
 	.elasticX(true);
 	
 	var assignee_d = issues_cf.dimension(function (d) {
-		return d.fields.assignee.displayName;
+		if (d.fields.assignee)
+			return d.fields.assignee.displayName;
+		else
+			return 'N/A';
 	});
 	var count_by_assignee = assignee_d.group();
 	var assignee_height = count_by_assignee.all().length * 20 + 200;
@@ -345,7 +485,10 @@
 	.elasticX(true);
 	
 	var project_d = issues_cf.dimension(function (d) {
-		return d.fields.project.name;
+		if (d.fields.project)
+			return d.fields.project.name;
+		else
+			return 'N/A';
 	});
 	var count_by_project = project_d.group();
 	var project_height = count_by_project.all().length * 20 + 200;
@@ -362,8 +505,8 @@
 	var issuetype_n = count_by_project.all().length;
 
 	issuetype_chart
-		.width(300)
-		.height(300)
+		.width(issuetype_n*10+200)
+		.height(issuetype_n*10+200)
 		.slicesCap(issuetype_n)
 		.innerRadius(0)
 		.dimension(issuetype_d)
@@ -375,8 +518,8 @@
 	var status_n = count_by_project.all().length;
 
 	status_chart
-		.width(300)
-		.height(300)
+		.width(status_n*10+200)
+		.height(status_n*10+200)
 		.slicesCap(status_n)
 		.innerRadius(0)
 		.dimension(status_d)
@@ -393,8 +536,8 @@
 	var resolution_n = count_by_project.all().length;
 
 	resolution_chart
-		.width(300)
-		.height(300)
+		.width(resolution_n*10+200)
+		.height(resolution_n*10+200)
 		.slicesCap(resolution_n)
 		.innerRadius(0)
 		.dimension(resolution_d)
