@@ -72,3 +72,7 @@ select
 .tt-suggestion p {
     margin: 0;
 }
+
+.twitter-typeahead {
+    position: absolute !important;
+}
