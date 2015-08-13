@@ -8,11 +8,11 @@
 	$jql = !is_null($_GET["jql"]) && $_GET["jql"] != ''  ? $_GET["jql"] : 'assignee=mmcclarin';
 	?>
 	<script>
-		console.log("<?php echo $jql;?>"); 
+		console.log(<?php echo json_encode($jql);?>); 
 	</script>
 	<?php
 	$data = 'jql='.urlencode($jql).'&fields=created,resolutiondate,reporter,assignee,project,issuetype,status,resolution,timespent&maxResults=10000';
-	//$data = 'jql=assignee=mmcclarin&fields=id&maxResults=10000';
+	//$data = 'jql=assignee=mmcclarin&maxResults=50';
 	$ch = curl_init();
 	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
 	curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
@@ -99,7 +99,7 @@
 	$('.ajax-typeahead').bind('typeahead:change', function(ev) {
 		for (var i = 0; i < operators.length; i ++)
 		{
-			operator = $('#jql_query').val().trim().endsWith(operators[i]) ? operators[i] : operator;
+			operator = $('#jql_query').val().trim().endsWith(" " + operators[i]) ? operators[i] : operator;
 		}
 		 myVal = $('#jql_query').val();
 	});
@@ -115,7 +115,7 @@
 	$('.ajax-typeahead').bind('typeahead:render', function(ev, suggestions, flag, name) {
 		for (var i = 0; i < operators.length; i ++)
 		{
-			operator = $('#jql_query').val().trim().endsWith(operators[i]) ? operators[i] : operator;
+			operator = $('#jql_query').val().trim().endsWith(" " + operators[i]) ? operators[i] : operator;
 		}
 		 myVal = $('#jql_query').val();
 	});
@@ -161,7 +161,7 @@
 		var operator_entered = false;
 		
 		
-		if ($('#jql_query').val().length === 0 || $('#jql_query').val().trim().length === 0)
+		if ($('#jql_query').val().length === 0 || $('#jql_query').val().trim().length === 0 || $('#jql_query').val().trim().toUpperCase().endsWith('AND') || $('#jql_query').val().trim().toUpperCase().endsWith('OR') )
 		{
 			filtered = fieldsNamesDisplay;
 		}
@@ -176,7 +176,39 @@
 			}
 		}	
 		
-		fieldName = $('#jql_query').val();
+		var startIndexAND = $('#jql_query').val().toUpperCase().lastIndexOf('AND ');
+		var startIndexOR = $('#jql_query').val().toUpperCase().lastIndexOf('OR ');
+		var start = 0;
+		if (startIndexAND != -1)
+		{
+			start = startIndexAND + 3;
+			fieldName = $('#jql_query').val().substring(start, $('#jql_query').val().length);
+			//console.log('fieldName: ' + fieldName);
+			filtered = [];
+			for (var i = 0 ; i < fieldsNamesDisplay.length; i++)
+			{
+				if (fieldsNamesDisplay[i].startsWith(fieldName.trim()))
+				{
+					filtered.push(fieldsNamesDisplay[i]);
+				}
+			}
+			
+		}
+		else if (startIndexOR != -1)
+		{
+			start = startIndexOR + 2;
+			fieldName = $('#jql_query').val().substring(start, $('#jql_query').val().length);
+			filtered = [];
+			for (var i = 0 ; i < fieldsNamesDisplay.length; i++)
+			{
+				if (fieldsNamesDisplay[i].startsWith(fieldName.trim()))
+				{
+					filtered.push(fieldsNamesDisplay[i]);
+				}
+			}
+		}
+		else fieldName = $('#jql_query').val();
+		
 		if (fieldName.endsWith(' ') && fieldName.trim().length > 0 && operator == "")
 		{
 			if (name_operator[fieldName.trim()])
@@ -193,17 +225,24 @@
 
 		for (var i = 0; i < operators.length; i ++)
 		{
-			operator = $('#jql_query').val().trim().endsWith(operators[i]) ? operators[i] : operator;
+			operator = $('#jql_query').val().endsWith( " " + operators[i]) ? operators[i] : operator;
 		}
 		
+		if ($('#jql_query').val().lastIndexOf(operator) <= start)
+		{
+			operator = "";
+		}
 			if ( operator)
 			{
 				//operator = operators[i];
 				console.log("operator: " + operator);
-				var query =  $('#jql_query').val().replace(/\s+/, "").split(operator);
-				fieldName = query[0];
-				fieldValue = query[1];
-				console.log("query: " + query);
+				//var query =  $('#jql_query').val().replace(/\s+/, "").split(operator);
+				//fieldName = query[query.length-2];
+				var indexofOperator = $('#jql_query').val().lastIndexOf(operator) + operator.length;
+				fieldName = $('#jql_query').val().substring( start, indexofOperator - operator.length).trim();
+				fieldValue = $('#jql_query').val().substring(indexofOperator,  $('#jql_query').val().length).trim();
+				console.log("FieldName: " + fieldName);
+				console.log("fieldValue: " + fieldValue);
 				
 				return $.ajax({
 				  
@@ -297,7 +336,7 @@
 <h3 id = "nresults" style = "margin-bottom: 0px;"></h3>
 <h3 id = "sresults" style = "margin-top: 0px;"></h3>
 
-<div id = "error" hidden><p>Error Getting data from Jira REST API.</p></div>
+<div id = "error" hidden><p id = "err_message"></p></div>
 <div id = "norsults" hidden><p>No data to show!</p></div>
 
 <div id = "charts">
@@ -343,6 +382,8 @@
 		echo $results;
 	?>;
 	var issues = json_obj['issues'];
+	var errors = json_obj['errorMessages'];
+	
 	var length = 0;
 	if (issues)
 		length = issues.length;
@@ -353,9 +394,10 @@
 	$('#jql_text').html("JQL: "+ jql_t);
 	
 	$('#nresults').html("Number of Results: "+ length);
-	if (!json_obj || json_obj == "")
+	if (!json_obj || json_obj == "" || errors)
 	{
 		$('#charts').hide();
+		$('#err_message').html("Error: " + errors[0]);
 		$('#error').show();
 	}
 	else if (!issues || length == 0)
@@ -533,11 +575,11 @@
 	
 	var issuetype_d = issues_cf.dimension(function(d){return d.fields.issuetype.name;});
 	var count_by_issuetype = issuetype_d.group();
-	var issuetype_n = count_by_project.all().length;
+	var issuetype_n = count_by_issuetype.all().length;
 
 	issuetype_chart
-		.width(issuetype_n*10+200)
-		.height(issuetype_n*10+200)
+		.width(issuetype_n*12+200)
+		.height(issuetype_n*12+200)
 		.slicesCap(issuetype_n)
 		.innerRadius(0)
 		.dimension(issuetype_d)
@@ -546,11 +588,11 @@
 	
 	var status_d = issues_cf.dimension(function(d){return d.fields.status.name;});
 	var count_by_status = status_d.group();
-	var status_n = count_by_project.all().length;
+	var status_n = count_by_status.all().length;
 
 	status_chart
-		.width(status_n*10+200)
-		.height(status_n*10+200)
+		.width(status_n*12+200)
+		.height(status_n*12+200)
 		.slicesCap(status_n)
 		.innerRadius(0)
 		.dimension(status_d)
@@ -564,11 +606,11 @@
 			return 'N/A';
 	});
 	var count_by_resolution = resolution_d.group();
-	var resolution_n = count_by_project.all().length;
+	var resolution_n = count_by_resolution.all().length;
 
 	resolution_chart
-		.width(resolution_n*10+200)
-		.height(resolution_n*10+200)
+		.width(resolution_n*12+200)
+		.height(resolution_n*12+200)
 		.slicesCap(resolution_n)
 		.innerRadius(0)
 		.dimension(resolution_d)
